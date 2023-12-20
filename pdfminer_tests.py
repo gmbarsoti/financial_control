@@ -18,7 +18,7 @@ class Purchase:
 
 
 def get_text_from_pdf():
-    pdf_path = os.path.join('.', 'source', 'Meliuz_statement', 'Meliuz_statement.pdf')
+    pdf_path = os.path.join('.', 'source', 'Meliuz', 'Meliuz_statement.pdf')
     pdf_text = extract_text(pdf_path, password='36234618812')
     #print(pdf_text)
     return pdf_text
@@ -69,7 +69,7 @@ def purchases_block(statement_text: str):
     additional_lines = 1
     start_ref_indexes = [m.start() for m in re.finditer(start_ref_string, statement_text)]
     start_ref_indexes = [m + len(start_ref_string) + 1 for m in start_ref_indexes] # removing string 'Valor em R$'
-    end_ref_indexes = [m.start() for m in re.finditer(end_ref_string, statement_text)][1:3]
+    end_ref_indexes = [m.start() for m in re.finditer(end_ref_string, statement_text)][1:-1]
     full_block = ''
     for i in range(len(start_ref_indexes)):
         full_block += statement_text[start_ref_indexes[i]:end_ref_indexes[i]]
@@ -91,10 +91,20 @@ def total_uber(purchases_txt: str):
             sum_uber += float(purchase.value.replace(',', '.'))
     print("total uber({0}): R${1}".format(str(uber_occurences), str(round(sum_uber, 2))))
 
+def seller_total(purchases_txt: str, seller_name: str):
+    uber_pattern = re.compile(seller_name, re.IGNORECASE)
+    seller_sum = 0.0
+    seller_occurences = 0
+    for purchase in purchase_list(purchases_txt):
+        if uber_pattern.match(purchase.description):
+            seller_occurences += 1
+            seller_sum += float(purchase.value.replace(',', '.'))
+    print("total {2}({0}): R${1}".format(str(seller_occurences), str(round(seller_sum, 2)), seller_name))
 
 
 if __name__ == '__main__':
     pdf_text = get_text_from_pdf()
-    a = purchases_block(pdf_text)
+    purchase_txt = purchases_block(pdf_text)
     total_uber(purchases_block(pdf_text))
+    seller_total(purchase_txt, "ifood")
     #text_file_from_statement(pdf_text)

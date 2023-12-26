@@ -2,24 +2,59 @@ from pdfminer.high_level import extract_text
 import os
 import time
 import re
+import yaml
+
 
 months = ['Jan', 'Fev', 'Abr', 'Mai',
           'Jun', 'Jul', 'Ago', 'Set',
           'Out', 'Nov', 'Dez']
 
 
-class Purchase:
+def create_yaml_file():
+    article_info = [
+        {
+            'Ref_data': {
+                'pdf_secret': ''
+            }
+        }
+    ]
+    yaml_path = os.path.join('.', 'source', 'financial.yaml')
+    with open(yaml_path, 'w') as yaml_file:
+        data = yaml.dump(article_info, yaml_file)
+        print("Write successful")
 
-    def __init__(self, date, description, card_info, value):
+
+def update_ref_yaml(data_to_update, value):
+    yaml_path = os.path.join('.', 'source', 'financial.yaml')
+    with open(yaml_path, "r") as yaml_file:
+        data = yaml.load(yaml_file, Loader=yaml.FullLoader)
+        data[0]['Ref_data'][data_to_update] = value
+    with open(yaml_path, "w") as yaml_file:
+        yaml.dump(data, yaml_file)
+
+
+def get_from_ref_yaml(required_data):
+    yaml_path = os.path.join('.', 'source', 'financial.yaml')
+    with open(yaml_path, "r") as yaml_file:
+        data = yaml.load(yaml_file, Loader=yaml.FullLoader)
+    return data[0]['Ref_data'][required_data]
+
+
+class Purchase:
+    def __init__(self, date, description, card_info, value, tags=None):
+        if tags is None:
+            tags = []
         self.date = date
         self.description = description
         self.card_info = card_info
         self.value = value
+        self.tags = tags
 
 
 def get_text_from_pdf():
     pdf_path = os.path.join('.', 'source', 'Meliuz', 'Meliuz_statement.pdf')
-    pdf_text = extract_text(pdf_path, password='36234618812')
+    secret = get_from_ref_yaml('pdf_secret')
+    pdf_text = extract_text(pdf_path, password=secret)
     #print(pdf_text)
     return pdf_text
 
@@ -103,6 +138,9 @@ def seller_total(purchases_txt: str, seller_name: str):
 
 
 if __name__ == '__main__':
+    yaml_path = os.path.join('.', 'source', 'financial.yaml')
+    if not os.path.exists(yaml_path):
+        create_yaml_file()
     pdf_text = get_text_from_pdf()
     purchase_txt = purchases_block(pdf_text)
     total_uber(purchases_block(pdf_text))

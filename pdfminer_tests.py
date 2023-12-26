@@ -3,6 +3,7 @@ import os
 import time
 import re
 import yaml
+import csv
 
 
 months = ['Jan', 'Fev', 'Abr', 'Mai',
@@ -119,12 +120,25 @@ def purchases_block(statement_text: str):
 def total_uber(purchases_txt: str):
     uber_pattern = re.compile(r"uber", re.IGNORECASE)
     sum_uber = 0.0
-    uber_occurences = 0
+    uber_occurrences = 0
     for purchase in purchase_list(purchases_txt):
         if uber_pattern.match(purchase.description):
-            uber_occurences += 1
+            uber_occurrences += 1
             sum_uber += float(purchase.value.replace(',', '.'))
-    print("total uber({0}): R${1}".format(str(uber_occurences), str(round(sum_uber, 2))))
+    print("total uber({0}): R${1}".format(str(uber_occurrences), str(round(sum_uber, 2))))
+
+
+def csv_creation(purchases_txt: str):
+    db_path = os.path.join('.', 'source', 'data_base.csv')
+    if not os.path.exists(db_path):
+        with open(db_path, 'w', encoding='UTF-8') as db_f:
+            purchases_writer = csv.writer(db_f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            for purchase in purchase_list(purchases_txt):
+                purchases_writer.writerow([purchase.card_info, purchase.date, purchase.description,
+                                           purchase.value, purchase.tags])
+    else:
+        print("db.csv already exists!")
+
 
 def seller_total(purchases_txt: str, seller_name: str):
     uber_pattern = re.compile(seller_name, re.IGNORECASE)
@@ -143,6 +157,7 @@ if __name__ == '__main__':
         create_yaml_file()
     pdf_text = get_text_from_pdf()
     purchase_txt = purchases_block(pdf_text)
+    csv_creation(purchase_txt)
     total_uber(purchases_block(pdf_text))
     seller_total(purchase_txt, "ifood")
     #text_file_from_statement(pdf_text)

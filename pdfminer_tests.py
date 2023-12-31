@@ -4,7 +4,8 @@ import time
 import re
 import yaml
 import csv
-
+import pandas as pd
+import ast
 
 months = ['Jan', 'Fev', 'Abr', 'Mai',
           'Jun', 'Jul', 'Ago', 'Set',
@@ -133,6 +134,7 @@ def csv_creation(purchases_txt: str):
     if not os.path.exists(db_path):
         with open(db_path, 'w', encoding='UTF-8') as db_f:
             purchases_writer = csv.writer(db_f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            purchases_writer.writerow(["card_info", "date", "description", "value", "tags"])
             for purchase in purchase_list(purchases_txt):
                 purchases_writer.writerow([purchase.card_info, purchase.date, purchase.description,
                                            purchase.value, purchase.tags])
@@ -143,12 +145,99 @@ def csv_creation(purchases_txt: str):
 def seller_total(purchases_txt: str, seller_name: str):
     uber_pattern = re.compile(seller_name, re.IGNORECASE)
     seller_sum = 0.0
-    seller_occurences = 0
+    seller_occurrences = 0
     for purchase in purchase_list(purchases_txt):
         if uber_pattern.match(purchase.description):
-            seller_occurences += 1
+            seller_occurrences += 1
             seller_sum += float(purchase.value.replace(',', '.'))
-    print("total {2}({0}): R${1}".format(str(seller_occurences), str(round(seller_sum, 2)), seller_name))
+    print("total {2}({0}): R${1}".format(str(seller_occurrences), str(round(seller_sum, 2)), seller_name))
+
+
+def load_data_from_csv():
+    db_path = os.path.join('.', 'source', 'data_base.csv')
+    purchase_csv_list = []
+    if os.path.exists(db_path):
+        with open(db_path, 'r', encoding='UTF-8') as db_f:
+            csv_reader = csv.DictReader(db_f)
+            for row in csv_reader:
+                if row["tags"] == '[]':
+                    purchase_csv_list.append(
+                        Purchase(row["date"], row["description"], row["card_info"], row["value"], []))
+                else:
+                    purchase_csv_list.append(Purchase(row["date"], row["description"], row["card_info"], row["value"], ast.literal_eval(row["tags"])))
+    return purchase_csv_list
+
+
+def read_and_print_csv():
+    db_path = os.path.join('.', 'source', 'data_base.csv')
+    if os.path.exists(db_path):
+        with open(db_path, 'r', encoding='UTF-8') as db_f:
+            csv_reader = csv.DictReader(db_f)
+            line_count = 0
+            for row in csv_reader:
+                if line_count == 0:
+                    print(f'Column names are {", ".join(row)}')
+                    line_count += 1
+                print(
+                    f'\t{row["card_info"]} : {row["date"]} : {row["description"]} : {row["value"]} : {row["tags"]}.')
+                line_count += 1
+            print(f'Processed {line_count} lines.')
+
+
+def add_uber_tag(purchase_obj_list: list):
+    for purchase in purchase_obj_list:
+        if 'uber' not in purchase.description.lower():
+            pass
+        elif 'uber' not in purchase.tags:
+            purchase.tags.append('uber')
+
+
+def add_ifood_tag(purchase_obj_list: list):
+    for purchase in purchase_obj_list:
+        if 'ifood' not in purchase.description.lower():
+            pass
+        elif 'ifood' not in purchase.tags:
+            purchase.tags.append('ifood')
+            purchase.tags.append('food')
+
+
+def update_csv_file(purchase_obj_list: list):
+    db_path = os.path.join('.', 'source', 'data_base.csv')
+    with open(db_path, 'w', encoding='UTF-8') as db_f:
+        purchases_writer = csv.writer(db_f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        purchases_writer.writerow(["card_info", "date", "description", "value", "tags"])
+        for purchase in purchase_obj_list:
+            purchases_writer.writerow([purchase.card_info, purchase.date, purchase.description,
+                                       purchase.value, purchase.tags])
+
+def total_by_tag(purchase_obj_list: list, tag: str):
+    tag_occurrences = 0
+    value_sum = 0
+    for purchase in purchase_obj_list:
+        if tag in purchase.tags:
+            tag_occurrences += 1
+            value_sum += float(purchase.value.replace(',', '.'))
+    print("total tag - {2} - ({0}): R${1}".format(str(tag_occurrences), str(round(value_sum, 2)), tag))
+    return value_sum
+
+
+def total_without_tag(purchase_obj_list: list):
+    tag_occurrences = 0
+    value_sum = 0
+    for purchase in purchase_obj_list:
+        if not purchase.tags:
+            tag_occurrences += 1
+            value_sum += float(purchase.value.replace(',', '.'))
+    print("total no tag ({0}): R${1}".format(str(tag_occurrences), str(round(value_sum, 2))))
+    return value_sum
+
+
+def if_tag_add_tag(purchase_obj_list: list, ref_tag: str, new_add: str):
+    for purchase in purchase_obj_list:
+        if ref_tag.lower() not in purchase.tags:
+            pass
+        elif new_add.lower() not in purchase.tags:
+            purchase.tags.append(new_add.lower())
 
 
 if __name__ == '__main__':
@@ -158,6 +247,23 @@ if __name__ == '__main__':
     pdf_text = get_text_from_pdf()
     purchase_txt = purchases_block(pdf_text)
     csv_creation(purchase_txt)
+    read_and_print_csv()
+    purchase_obj_list = load_data_from_csv()
+    add_uber_tag(purchase_obj_list)
+    add_ifood_tag(purchase_obj_list)
+    if_tag_add_tag(purchase_obj_list, 'uber', 'transport')
+
+    update_csv_file(purchase_obj_list)
+
     total_uber(purchases_block(pdf_text))
     seller_total(purchase_txt, "ifood")
+    sum = 0
+    sum += total_by_tag(purchase_obj_list, 'food')
+    sum += total_by_tag(purchase_obj_list, 'health')
+    sum += total_by_tag(purchase_obj_list, 'supermarket')
+    sum += total_by_tag(purchase_obj_list, 'transport')
+    sum += total_by_tag(purchase_obj_list, 'housing')
+    sum += total_by_tag(purchase_obj_list, 'entertainment')
+    sum += total_without_tag(purchase_obj_list)
+    print("Total statement: R${0}".format(str(sum.__round__(2))))
     #text_file_from_statement(pdf_text)

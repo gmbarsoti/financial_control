@@ -232,6 +232,14 @@ def total_without_tag(purchase_obj_list: list):
     return value_sum
 
 
+def purchases_without_tag(purchase_obj_list: list):
+    ret_list = []
+    for purchase in purchase_obj_list:
+        if not purchase.tags:
+            ret_list.append(purchase)
+    return ret_list
+
+
 def if_tag_add_tag(purchase_obj_list: list, ref_tag: str, new_add: str):
     for purchase in purchase_obj_list:
         if ref_tag.lower() not in purchase.tags:
@@ -266,4 +274,6 @@ if __name__ == '__main__':
     sum += total_by_tag(purchase_obj_list, 'entertainment')
     sum += total_without_tag(purchase_obj_list)
     print("Total statement: R${0}".format(str(sum.__round__(2))))
+    for purchase in purchases_without_tag(purchase_obj_list):
+        print(purchase.description)
     #text_file_from_statement(pdf_text)

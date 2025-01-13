@@ -3,3 +3,4 @@ charset-normalizer==3.3.2
 cryptography==41.0.7
 pdfminer.six==20221105
 pycparser==2.21
+pdfminer

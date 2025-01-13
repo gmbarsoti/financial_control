@@ -35,10 +35,15 @@ def update_ref_yaml(data_to_update, value):
         yaml.dump(data, yaml_file)
 
 
-def get_from_ref_yaml(required_data):
+def get_from_ref_yaml(required_data: str, institution: str):
     yaml_path = os.path.join('.', 'source', 'financial.yaml')
     with open(yaml_path, "r") as yaml_file:
         data = yaml.load(yaml_file, Loader=yaml.FullLoader)
+    match institution.lower():
+        case "inter":
+            return data[0]['Ref_data'][required_data][:6]
+        case "meliuz":
+            return data[0]['Ref_data'][required_data]
     return data[0]['Ref_data'][required_data]
 
 
@@ -53,12 +58,11 @@ class Purchase:
         self.tags = tags
 
 
-def get_text_from_pdf():
-    pdf_path = os.path.join('.', 'source', 'Meliuz', 'Meliuz_statement.pdf')
-    secret = get_from_ref_yaml('pdf_secret')
+def get_text_from_pdf(pdf_path, institution):
+    secret = get_from_ref_yaml('pdf_secret', institution)
     pdf_text = extract_text(pdf_path, password=secret)
-    #print(pdf_text)
     return pdf_text
+
 
 def text_file_from_statement(statement_text):
     outputdir_path = os.path.join('.', 'output')
@@ -252,7 +256,9 @@ if __name__ == '__main__':
     yaml_path = os.path.join('.', 'source', 'financial.yaml')
     if not os.path.exists(yaml_path):
         create_yaml_file()
-    pdf_text = get_text_from_pdf()
+    pdf_file = 'source/Meliuz/Meliuz_statement.pdf'
+    institution = 'Meliuz'
+    pdf_text = get_text_from_pdf(pdf_file, institution)
     purchase_txt = purchases_block(pdf_text)
     csv_creation(purchase_txt)
     read_and_print_csv()

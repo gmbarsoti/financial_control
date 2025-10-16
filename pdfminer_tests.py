@@ -76,26 +76,36 @@ def text_file_from_statement(statement_text):
 def purchase_list(purchase_block: str, institution):
     match institution.lower():
         case "meliuz":
-            card_pattern1 = re.compile(r"cartão virtual •{4} [0-9]{4}", re.IGNORECASE)
-            card_pattern2 = re.compile(r"cartão físico", re.IGNORECASE)
+            card_pattern1 = re.compile(r"5458 •{4} [0-9]{4}", re.IGNORECASE)
+            card_pattern2 = re.compile(r"7605", re.IGNORECASE)
             date_pattern = re.compile(r"[0-9]{2} [A-Z][a-z]{2}")
             date, description, card_info, value, purchase_list = [], [], [], [], []
             for line in purchase_block.split('\n')[:-1]:
                 if date_pattern.match(line):
-                    # not len(line.split(' ')) == 2: and (0 < int(line.split(' ')[0]) < 31) and (line.split(' ')[1] in months):
-                    date.append(line.split(' '))
-                elif card_pattern1.match(line) or card_pattern2.match(line):
+                    if ('05 Ago  MERCADOLIVRE*MERCADOLI' in line):
+                        description.append(line.split(' ')[3])
+                        date.append(line.split(' ')[:2])
+                    else:
+                        # not len(line.split(' ')) == 2: and (0 < int(line.split(' ')[0]) < 31) and (line.split(' ')[1] in months):
+                        date.append(line.split(' '))
+                #elif card_pattern1.match(line) or card_pattern2.match(line):
+                elif ('•••• 5458' in line) or ('•••• 7605' in line):
                     card_info.append(line)
-                elif ('R$' in line) and (u'\xa0' in line):
-                    value.append(line[3:])
-                else:
-                    description.append(line)
+                #elif ('R$' in line) and (u'\xa0' in line):
+                elif ('R$' in line):
+                    if (not '+' in line):
+                        value.append(line[3:])
+                elif (not 'Pagamento efetuado' in line):
+                        description.append(line)
+                elif ('Pagamento efetuado' in line):
+                    del date[-1]
 
             # Removing payment data
-            payment_index = description.index('Pagamento')
-            del description[payment_index]
-            del value[payment_index]
-            del date[payment_index]
+            # if description:
+            #     payment_index = description.index('Pagamento')
+            #     del description[payment_index]
+            #     del value[payment_index]
+            #     del date[payment_index]
 
             if len(value) != len(date) or len(date) != len(card_info) or len(card_info) != len(description):
                 raise ("Parsing purchases ERROR!")
@@ -161,7 +171,7 @@ def purchases_block(statement_text: str, institution):
             end_ref_string = "\f"
             start_ref_indexes = [m.start() for m in re.finditer(start_ref_string, statement_text)]
             start_ref_indexes = [m + len(start_ref_string) + 1 for m in start_ref_indexes] # removing start_ref_string
-            end_ref_indexes = [m.start() for m in re.finditer(end_ref_string, statement_text)][1:-1]
+            end_ref_indexes = [m.start() for m in re.finditer(end_ref_string, statement_text)][2:]
             full_block = ''
             for i in range(len(start_ref_indexes)):
                 full_block += statement_text[start_ref_indexes[i]:end_ref_indexes[i]]
@@ -198,23 +208,20 @@ def total_uber(purchases_txt: str, institution):
 
 def csv_creation(purchases_txt: str, institution):
     db_path = os.path.join('.', 'source', 'data_base.csv')
-    if not os.path.exists(db_path):
-        with open(db_path, 'w', encoding='UTF-8') as db_f:
-            purchases_writer = csv.writer(db_f, delimiter=',', quotechar='"', escapechar='\\', quoting=csv.QUOTE_MINIMAL)
-            purchases_writer.writerow(["card_info", "date", "description", "value", "tags"])
-            for purchase in purchase_list(purchases_txt, institution):
-                purchases_writer.writerow([purchase.card_info, purchase.date, purchase.description,
-                                           purchase.value, purchase.tags])
-    else:
-        print("db.csv already exists!")
+    with open(db_path, 'w', encoding='UTF-8') as db_f:
+        purchases_writer = csv.writer(db_f, delimiter=',', quotechar='"', escapechar='\\', quoting=csv.QUOTE_MINIMAL)
+        purchases_writer.writerow(["card_info", "date", "description", "value", "tags"])
+        for purchase in purchase_list(purchases_txt, institution):
+            purchases_writer.writerow([purchase.card_info, purchase.date, purchase.description,
+                                       purchase.value, purchase.tags])
 
 
 def seller_total(purchases_txt: str, seller_name: str, institution: str):
-    uber_pattern = re.compile(seller_name, re.IGNORECASE)
+    uber_pattern = re.compile(seller_name.lower(), re.IGNORECASE)
     seller_sum = 0.0
     seller_occurrences = 0
     for purchase in purchase_list(purchases_txt, institution):
-        if uber_pattern.match(purchase.description):
+        if uber_pattern.match(purchase.description.lower()):
             seller_occurrences += 1
             seller_sum += float(purchase.value.replace(',', '.'))
     print("total {2}({0}): R${1}".format(str(seller_occurrences), str(round(seller_sum, 2)), seller_name))
@@ -261,7 +268,7 @@ def add_uber_tag(purchase_obj_list: list):
 
 def add_ifood_tag(purchase_obj_list: list):
     for purchase in purchase_obj_list:
-        if 'ifood' not in purchase.description.lower():
+        if not (('ifood' in purchase.description.lower()) or ('ifd*' in purchase.description.lower())):
             pass
         elif 'ifood' not in purchase.tags:
             purchase.tags.append('ifood')
@@ -328,10 +335,10 @@ if __name__ == '__main__':
     yaml_path = os.path.join('.', 'source', 'financial.yaml')
     if not os.path.exists(yaml_path):
         create_yaml_file()
-    #pdf_file = 'source/Meliuz/Meliuz_statement.pdf'
-    pdf_file = 'source/Inter/inter_statement_nov_dec_2024.pdf'
-    #institution = 'Meliuz'
-    institution = 'Inter'
+    pdf_file = 'source/Meliuz/Meliuz_statement.pdf'
+    # pdf_file = 'source/Inter/inter_statement_nov_dec_2024.pdf'
+    institution = 'Meliuz'
+    # institution = 'Inter'
     pdf_text = get_text_from_pdf(pdf_file, institution)
     purchase_txt = purchases_block(pdf_text, institution)
     csv_creation(purchase_txt, institution)
@@ -347,6 +354,8 @@ if __name__ == '__main__':
     add_tag_based_on_description(purchase_obj_list, 'LIMA PET SHOP', 'pet')
     add_tag_based_on_description(purchase_obj_list, 'AUTO POSTO TAK', 'fuel')
     add_tag_based_on_description(purchase_obj_list, 'AUTO POSTO CASSIANO', 'fuel')
+    add_tag_based_on_description(purchase_obj_list, 'MERCADOLIVRE', 'mercadolivre')
+    add_tag_based_on_description(purchase_obj_list, 'MOVIDA', 'transport')
 
     update_csv_file(purchase_obj_list)
 
@@ -361,8 +370,10 @@ if __name__ == '__main__':
     sum += total_by_tag(purchase_obj_list, 'housing')
     sum += total_by_tag(purchase_obj_list, 'entertainment')
     sum += total_by_tag(purchase_obj_list, 'fuel')
+    total_by_tag(purchase_obj_list, 'ifood')
+    sum += total_by_tag(purchase_obj_list, 'mercadolivre')
     sum += total_without_tag(purchase_obj_list)
     print("Total statement: R${0}".format(str(sum.__round__(2))))
     for purchase in purchases_without_tag(purchase_obj_list):
-        print(purchase.description)
+        print(purchase.description + ' - ' + purchase.value)
     #text_file_from_statement(pdf_text)

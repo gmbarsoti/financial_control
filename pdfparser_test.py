@@ -1,7 +1,7 @@
 import PyPDF2
 
 # Open the PDF file
-with open('source/Meliuz/Meliuz_statement.pdf', 'rb') as file:
+with open('statementSource/Meliuz/Meliuz_statement.pdf', 'rb') as file:
     reader = PyPDF2.PdfFileReader(file)
     number_of_pages = reader.numPages
 

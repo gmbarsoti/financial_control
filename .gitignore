@@ -1,4 +1,9 @@
 .idea
 venv
 venvcamelot
-source/Meliuz_statement/Meliuz_statement.pdf
+statementSource/Meliuz_statement/Meliuz_statement.pdf
+__pycache__/*.*
+*.pdf
+*.csv
+*.db
+*.yaml

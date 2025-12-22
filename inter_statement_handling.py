@@ -31,8 +31,8 @@ def get_inter_statement_as_pdf(pdf_file, password='', page_numbers=None, maxpage
                 idx += 1
 
 def main():
-    pdf_file = 'source/Inter/Inter_statement_nov_dec_2024.pdf'
-    # pdf_file = 'source/Meliuz/Meliuz_statement.pdf'
+    pdf_file = 'statementSource/Inter/Inter_statement_nov_dec_2024.pdf'
+    # pdf_file = 'statementSource/Meliuz/Meliuz_statement.pdf'
     for count, page_text in get_inter_statement_as_pdf(pdf_file):
         print(f'page# {count}:\n{page_text}')
         print()

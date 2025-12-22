@@ -58,7 +58,7 @@ def parse_pix_description(description, received):
 
 
 def csv_to_obj():
-    nu_csv_path = os.path.join('.', 'source', 'Nu', 'nu.csv')
+    nu_csv_path = os.path.join('.', 'statementSource', 'Nu', 'nu.csv')
     pix_list = []
     with open(nu_csv_path, 'r', encoding='UTF-8') as nu_csv:
         nu_csv_dict = csv.DictReader(nu_csv)

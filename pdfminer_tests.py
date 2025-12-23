@@ -91,6 +91,8 @@ class CreditCardStatement:
                 date_pattern = re.compile(r"[0-9]{2} [A-Z][a-z]{2}")
                 date, description, card_info, value, purchase_list = [], [], [], [], []
                 for line in self.purchases_block().split('\n')[:-1]:
+                    if line[0] == ' ':
+                        line = line[1:]
                     if date_pattern.match(line):
                         if is_date_and_description_in_one_line(line):
                             description.append(line.split(' ')[3])
@@ -194,6 +196,7 @@ def get_statement_payment_date(statement_text, institution_name):
             if start_pos != -1 and end_pos != -1:
                 payment_date = statement_text[start_pos + len(start_ref_string): end_pos]
             payment_date = payment_date.replace('\n', '')
+            payment_date = payment_date.replace(' ', '')
             return datetime.strptime(payment_date, "%d/%m/%Y")
 
 
@@ -207,6 +210,7 @@ def get_statement_value_to_pay(statement_text, institution_name):
             if start_pos != -1 and end_pos != -1:
                 value_to_pay = statement_text[start_pos + len(start_ref_string): end_pos]
                 value_to_pay = value_to_pay.replace('\n', '')
+                value_to_pay = value_to_pay.replace(' ', '')
                 return value_to_pay
 
 
@@ -418,6 +422,21 @@ def add_tag_based_on_description(purchase_obj_list: list, description, tag_to_ad
             purchase.tags.append(tag_to_add.lower())
 
 
+def iterate_over_a_year_of_statements(credit_card_institution):
+    match credit_card_institution.lower():
+        case "meliuz":
+            for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
+                month = str(i) if len(str(i)) > 1 else ''.join(['0', str(i)])
+                pdf_file = f'statementSource/{credit_card_institution}/2025/2025-{month}.pdf'
+                pdf_text = get_text_from_pdf(pdf_file, credit_card_institution)
+                statement_payment_date = get_statement_payment_date(pdf_text, credit_card_institution)
+                statement_value_to_pay = get_statement_value_to_pay(pdf_text, credit_card_institution)
+                statement_object = CreditCardStatement(credit_card_institution, statement_payment_date, statement_value_to_pay, pdf_text)
+                purchases_list = statement_object.purchase_list()
+                database.add_credit_card_operation_to_database(purchases_list)
+
+
+
 if __name__ == '__main__':
     yaml_path = os.path.join('.', 'statementSource', 'financial.yaml')
     if not os.path.exists(yaml_path):
@@ -425,20 +444,9 @@ if __name__ == '__main__':
     institution = 'Meliuz'
     # institution = 'Inter'
 
-    for i in [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12]:
-        month = str(i) if len(str(i)) > 1 else ''.join(['0', str(i)])
-        pdf_file = f'statementSource/{institution}/2025/2025-{month}.pdf'
-        # pdf_file = 'statementSource/Inter/inter_statement_nov_dec_2024.pdf'
-        pdf_text = get_text_from_pdf(pdf_file, institution)
-        statement_payment_date = get_statement_payment_date(pdf_text, institution)
-        statement_value_to_pay = get_statement_value_to_pay(pdf_text, institution)
-        statement_object = CreditCardStatement(institution, statement_payment_date, statement_value_to_pay, pdf_text)
-        purchases_txt = statement_object.purchases_block()
-        purchases_list = statement_object.purchase_list()
-        database.add_credit_card_operation_to_database(purchases_list)
+    iterate_over_a_year_of_statements(institution)
 
-
-    pdf_file = 'statementSource/Meliuz/2025/2025-01.pdf'
+    pdf_file = 'statementSource/Meliuz/2025/2025-09.pdf'
     # pdf_file = 'statementSource/Inter/inter_statement_nov_dec_2024.pdf'
     pdf_text = get_text_from_pdf(pdf_file, institution)
     statement_payment_date = get_statement_payment_date(pdf_text, institution)
